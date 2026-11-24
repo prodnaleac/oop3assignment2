@@ -22,5 +22,72 @@ package implementations;
  */
 public class MyDLLNode
 {
-
+	private String element;
+	private MyDLLNode pred;
+	private MyDLLNode succ;
+	
+    /**
+     * Constructs a node holding the given element, with no neighbours yet.
+     *
+     * @param element the String to store in this node
+     */
+	public MyDLLNode( String element ) {
+		this.element = element;
+		this.pred = null;
+		this.succ = null;
+	}
+	
+	 /**
+     * Returns the element stored in this node.
+     *
+     * @return the stored String
+     */
+	public String getElement() { 
+		return element; 
+	}
+	
+	/**
+     * Replaces the element stored in this node.
+     *
+     * @param element the new String to store
+     */
+	public void setElement( String element ) { 
+		this.element = element; 
+	}
+	
+	 /**
+     * Returns the node before this one.
+     *
+     * @return the predecessor node, or null if this node is the head
+     */
+	public MyDLLNode getPred() {
+		return pred;	
+	}
+	
+	 /**
+     * Sets the node before this one.
+     *
+     * @param pred the node to link as the predecessor, or null
+     */
+	public void setPred( MyDLLNode pred ) {
+		this.pred = pred;
+	}
+	
+	/**
+     * Returns the node after this one.
+     *
+     * @return the successor node, or null if this node is the tail
+     */
+	public MyDLLNode getSucc() {
+		return succ;
+	}
+	
+	/**
+     * Sets the node after this one.
+     *
+     * @param succ the node to link as the successor, or null
+     */
+	public void setSucc ( MyDLLNode succ ) {
+		this.succ = succ;
+	}
 }
