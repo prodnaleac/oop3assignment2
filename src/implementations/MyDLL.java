@@ -1,6 +1,4 @@
 package implementations;
-
-import java.util.Arrays;
 import java.util.NoSuchElementException;
 import utilities.Iterator;
 import utilities.ListADT;
@@ -238,5 +236,180 @@ public class MyDLL implements ListADT
     		throw new IndexOutOfBoundsException( "Index: " + index + ", Size: " + size );
     	}
     	return unlink( getNode( index ) );
+    }
+    
+    /**
+     * Removes and returns the first occurrence of the specified element,
+     * if it is present.
+     *
+     * @param toRemove the String to remove; must not be null
+     * @return the removed element, or null if it was not found
+     * @throws NullPointerException if toRemove is null
+     */
+    @Override
+    public String remove( String toRemove ) throws NullPointerException {
+    	if( toRemove == null ) {
+    		throw new NullPointerException( "Cannot remove a null element." );
+    	}
+    	
+    	MyDLLNode current = head;
+    	while ( current != null ) {
+    		if ( current.getElement().equals( toRemove ) ) {
+    			return unlink( current );
+    		}
+    		current = current.getSucc();
+    	}
+    	return null;
+    }
+    
+    /**
+     * Returns the zero-based index of the first occurrence of the
+     * specified element, or -1 if it is not present.
+     *
+     * @param toFind the String to search for; must not be null
+     * @return the index of the first match, or -1 if not found
+     * @throws NullPointerException if toFind is null
+     */
+    @Override
+    public int indexOf( String toFind ) throws NullPointerException {
+    	if ( toFind == null ) {
+    		throw new NullPointerException( "Cannot search for a null element." );
+    	}
+    	
+    	int index = 0;
+    	MyDLLNode current = head;
+    	while ( current != null ) {
+    		if ( current.getElement().equals( toFind ) ) {
+    			return index;
+    		}
+    		current = current.getSucc();
+    		index++;
+    	}
+    	return -1;
+    }
+    
+    /**
+     * Returns true if the list contains at least one occurrence of the
+     * specified element.
+     *
+     * @param toFind the String to search for; must not be null
+     * @return true if the element is found; false otherwise
+     * @throws NullPointerException if toFind is null
+     */
+    @Override
+    public boolean contains( String toFind ) throws NullPointerException {
+    	return indexOf( toFind ) != -1;
+    }
+    
+    /**
+     * Appends all elements from the specified list to the end of this
+     * list, in the order returned by that list's iterator.
+     *
+     * @param toAdd the list whose elements are to be appended; must not be null
+     * @return true if this list changed as a result of the call
+     * @throws NullPointerException if toAdd is null
+     */
+    @Override
+    public boolean addAll( ListADT toAdd) throws NullPointerException {
+    	if( toAdd == null ) {
+    		throw new NullPointerException( "Can't add all from a null list." );
+    	}
+    	
+    	boolean changed = false;
+    	Iterator it = toAdd.iterator();
+    	while ( it.hasNext() ) {
+    		add( it.next() );
+    		changed = true;
+    	}
+    	return changed;
+    }
+    
+    /**
+     * Copies the elements of this list into the provided array in order.
+     * If the array is large enough it is filled and returned; otherwise a
+     * new array of sufficient size is allocated and returned.
+     *
+     * @param toHold the array to store the elements in; must not be null
+     * @return an array containing all elements of this list in order
+     * @throws NullPointerException if toHold is null
+     */
+    @Override
+    public String[] toArray( String[] toHold ) throws NullPointerException {
+    	if( toHold == null ) {
+    		throw new NullPointerException( "The holder array can't be null" );
+    	}
+    	
+    	String[] result = ( toHold.length >= size ) ? toHold : new String[ size ];
+    	
+    	MyDLLNode current = head;
+    	for ( int i = 0; i < size; i++ ) {
+    		result[i] = current.getElement();
+    		current = current.getSucc();
+    	}
+    	if ( result.length > size ) {
+    		result [ size ] = null;
+    	}
+    	return result;
+    }
+    
+    /**
+     * Returns an iterator over the elements of this list, from first to
+     * last. The iterator works on a snapshot taken at creation, so later
+     * changes to the list do not affect it.
+     *
+     * @return a new iterator over a copy of this list's elements
+     */
+    @Override
+    public Iterator iterator() {
+    	return new DLLIterator();
+    }
+    
+    /**
+     * A forward-only iterator that traverses a snapshot of the list taken
+     * when the iterator was created.
+     */
+    private class DLLIterator implements Iterator {
+        /** The copy of the list's elements this iterator reads from. */
+    	private final String[] snapshot;
+    	
+        /** The index of the next element to return. */
+    	private int position = 0;
+    	
+    	/**
+         * Creates an iterator by copying the current elements of the list
+         * into an internal array.
+         */
+    	DLLIterator() {
+    		snapshot = new String[ size ];
+    		MyDLLNode current = head;
+    		for ( int i = 0; i < size; i++ ) {
+    			snapshot[ i ] = current.getElement();
+    			current = current.getSucc();
+    		}
+    	}
+    	
+    	/**
+         * Returns true if the iteration has more elements.
+         *
+         * @return true if another element remains; false otherwise
+         */
+    	@Override
+    	public boolean hasNext() {
+    		return position < snapshot.length;
+    	}
+    	
+    	/**
+         * Returns the next element and advances the iterator.
+         *
+         * @return the next element in the iteration
+         * @throws NoSuchElementException if no elements remain
+         */
+        @Override
+        public String next() throws NoSuchElementException {
+        	if( !hasNext() ) {
+        		throw new NoSuchElementException( "No more elements." );
+        	}
+        	return snapshot[ position++ ];
+        }
     }
 }
