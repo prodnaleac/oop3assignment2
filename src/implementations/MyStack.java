@@ -27,7 +27,7 @@ import utilities.StackADT;
 public class MyStack implements StackADT
 {
 	/** 
-	 * the underlying list used to store the stack elements
+	 * the underlying list used to store the stack elements.
 	 */
 	private MyArrayList stack;
 	

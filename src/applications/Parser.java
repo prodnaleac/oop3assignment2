@@ -11,7 +11,7 @@ public class Parser
     /**
      * Processes a bracket according to Kitty's parser algorithm.
      *
-     * @param bracketEntry the bracket and its line number (e.g. "(|10")
+     * @param bracketEntry the bracket and its line number (e.g. "(|11")
      * @param bracketStack the stack of opening brackets
      * @param errorQ the queue of potential syntax errors
      * @param extrasQ the queue of unmatched closing brackets
