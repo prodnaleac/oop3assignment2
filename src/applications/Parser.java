@@ -36,23 +36,14 @@ public class Parser
             System.out.println( "Usage: java -jar Parser.jar <path to text file>" );
             return;
         }
-        if ( args.length > 1 )
-        {
-            System.out.println( "Note: only the first argument is used, the rest were ignored." );
-        }
 
         String fileName = args[ 0 ];
         File file = new File( fileName );
 
-        // file not found, or it's a folder instead of a file
+        // file not found
         if ( !file.exists() )
         {
             System.out.println( "Error: the file \"" + fileName + "\" could not be found." );
-            return;
-        }
-        if ( !file.isFile() )
-        {
-            System.out.println( "Error: \"" + fileName + "\" is a folder, not a file." );
             return;
         }
 
@@ -75,7 +66,7 @@ public class Parser
      *
      * @param file  the text file to parse, has to exist
      * @throws IOException if the file can't be opened or read
-     * @throws EmptyQueueException if a queue is read while empty (guarded, should not happen)
+     * @throws EmptyQueueException if a queue is read while empty
      */
     private static void parseFile( File file ) throws IOException, EmptyQueueException
     {
@@ -86,7 +77,6 @@ public class Parser
         // keep every line so errors can show what the line looked like
         MyArrayList lines = new MyArrayList();
 
-        // try-with-resources closes the file even if something goes wrong
         try ( BufferedReader reader = new BufferedReader( new FileReader( file ) ) )
         {
             String line;
@@ -149,7 +139,7 @@ public class Parser
      * @param errorQ        possible errors from the main loop
      * @param extrasQ       closing brackets with no opener
      * @return every error as a "bracket|line" entry
-     * @throws EmptyQueueException if a queue is read while empty (guarded, should not happen)
+     * @throws EmptyQueueException if a queue is read while empty
      */
     private static MyArrayList checkEndOfFile( MyStack bracketStack, MyQueue errorQ, MyQueue extrasQ )
             throws EmptyQueueException
@@ -219,7 +209,6 @@ public class Parser
      */
     private static int lineOf( String entry )
     {
-        // "|" means OR in a regex, so it has to be escaped
         return Integer.parseInt( entry.split( "\\|" )[ 1 ] );
     }
 
@@ -231,7 +220,6 @@ public class Parser
      */
     private static void reportError( String entry, MyArrayList lines )
     {
-        // "|" means OR in a regex, so it has to be escaped
         String[] parts = entry.split( "\\|" );
         char bracket = parts[ 0 ].charAt( 0 );
         int lineNumber = lineOf( entry );
@@ -256,13 +244,13 @@ public class Parser
     }
 
     /**
-     * checks if the &lt; or &gt; at the given spot is an operator instead of a bracket:
-     * &lt;= &gt;= &lt;&lt; &gt;&gt; -&gt;, or a lone &lt; / &gt; with spaces on both sides
-     * sitting between two values (like "a &lt; b").
+     * checks if the &lt; or &gt; at the given spot is a comparison instead of a bracket:
+     * &lt;= &gt;=, or a lone &lt; / &gt; with spaces on both sides sitting between
+     * two values (like "a &lt; b").
      *
      * @param line   the line being parsed
      * @param index  the spot of the character to check
-     * @return true if it's a comparison or other operator, false if it's a bracket
+     * @return true if it's a comparison, false if it's a bracket
      */
     private static boolean isComparison( String line, int index )
     {
@@ -275,8 +263,8 @@ public class Parser
         char before = ( index > 0 ) ? line.charAt( index - 1 ) : ' ';
         char after = ( index < line.length() - 1 ) ? line.charAt( index + 1 ) : ' ';
 
-        // <=  >=  <<  >>  ->
-        if ( after == '=' || after == ch || before == ch || ( ch == '>' && before == '-' ) )
+        // <=  >=
+        if ( after == '=' )
         {
             return true;
         }
@@ -316,105 +304,100 @@ public class Parser
     }
 
     /**
-     * Processes a bracket according to parser algorithm.
+     * runs one bracket through the main loop of the parser algorithm.
      *
-     * @param bracketEntry the bracket and its line number (e.g. "(|11")
-     * @param bracketStack the stack of opening brackets
-     * @param errorQ the queue of potential syntax errors
-     * @param extrasQ the queue of unmatched closing brackets
-     * @throws EmptyQueueException if errorQ is read while empty (guarded, should not happen)
+     * @param bracketEntry  the bracket and its line number, e.g. "(|11"
+     * @param bracketStack  the stack of opening brackets
+     * @param errorQ        the queue of possible errors
+     * @param extrasQ       the queue of closing brackets with no opener
+     * @throws EmptyQueueException if errorQ is read while empty
      */
-    public static void processBracket(String bracketEntry,
-            MyStack bracketStack, MyQueue errorQ, MyQueue extrasQ) throws EmptyQueueException
+    public static void processBracket( String bracketEntry, MyStack bracketStack, MyQueue errorQ,
+            MyQueue extrasQ ) throws EmptyQueueException
     {
-        char bracket = bracketEntry.charAt(0);
+        char bracket = bracketEntry.charAt( 0 );
 
-        // Opening bracket: push on stack
-        if (bracket == '(' || bracket == '{'
-                || bracket == '[' || bracket == '<')
+        // opening bracket: push on stack
+        if ( bracket == '(' || bracket == '{' || bracket == '[' || bracket == '<' )
         {
-            bracketStack.push(bracketEntry);
+            bracketStack.push( bracketEntry );
         }
 
-        // Closing bracket
-        else if (bracket == ')' || bracket == '}'
-                || bracket == ']' || bracket == '>')
+        // closing bracket
+        else if ( bracket == ')' || bracket == '}' || bracket == ']' || bracket == '>' )
         {
-            // If it matches the top of the stack, pop and all is well
-            if (!bracketStack.isEmpty()
-                    && isMatchingPair(bracketStack.peek().charAt(0), bracket))
+            // matches the top of the stack, so pop and all is well
+            if ( !bracketStack.isEmpty() && isMatchingPair( bracketStack.peek().charAt( 0 ), bracket ) )
             {
                 bracketStack.pop();
             }
 
-            // Else if it matches the head of errorQ, dequeue and ignore
-            else if (!errorQ.isEmpty()
-                    && isMatchingPair(errorQ.peek().charAt(0), bracket))
+            // matches the head of errorQ, so dequeue and ignore
+            else if ( !errorQ.isEmpty() && isMatchingPair( errorQ.peek().charAt( 0 ), bracket ) )
             {
                 errorQ.dequeue();
             }
 
-            // Else if stack is empty, add to errorQ
-            else if (bracketStack.isEmpty())
+            // stack is empty, so add to errorQ
+            else if ( bracketStack.isEmpty() )
             {
-                errorQ.enqueue(bracketEntry);
+                errorQ.enqueue( bracketEntry );
             }
 
-            // Otherwise, search stack for matching opening bracket
+            // otherwise, search the stack for a matching opening bracket
             else
             {
                 MyStack tempStack = new MyStack();
                 boolean foundMatch = false;
 
-                // Search the stack
-                while (!bracketStack.isEmpty())
+                while ( !bracketStack.isEmpty() )
                 {
                     String entry = bracketStack.pop();
 
-                    if (isMatchingPair(entry.charAt(0), bracket))
+                    if ( isMatchingPair( entry.charAt( 0 ), bracket ) )
                     {
                         foundMatch = true;
                         break;
                     }
 
-                    tempStack.push(entry);
+                    tempStack.push( entry );
                 }
 
-                if (foundMatch)
+                if ( foundMatch )
                 {
-                    // Entries above the matching opener are errors
-                    while (!tempStack.isEmpty())
+                    // everything above the matching opener is an error
+                    while ( !tempStack.isEmpty() )
                     {
-                        errorQ.enqueue(tempStack.pop());
+                        errorQ.enqueue( tempStack.pop() );
                     }
                 }
                 else
                 {
-                    // Restore the original stack when no match was found
-                    while (!tempStack.isEmpty())
+                    // no match, so put the stack back the way it was
+                    while ( !tempStack.isEmpty() )
                     {
-                        bracketStack.push(tempStack.pop());
+                        bracketStack.push( tempStack.pop() );
                     }
 
-                    // No matching opener: add closing bracket to extrasQ
-                    extrasQ.enqueue(bracketEntry);
+                    // no matching opener, so add the closer to extrasQ
+                    extrasQ.enqueue( bracketEntry );
                 }
             }
         }
     }
 
     /**
-     * Determines whether an opening bracket matches a closing bracket.
+     * checks if an opening bracket matches a closing bracket.
      *
-     * @param opening the opening bracket
-     * @param closing the closing bracket
-     * @return true if the brackets match, false otherwise
+     * @param opening  the opening bracket
+     * @param closing  the closing bracket
+     * @return true if the brackets match, false if not
      */
-    private static boolean isMatchingPair(char opening, char closing)
+    private static boolean isMatchingPair( char opening, char closing )
     {
-        return (opening == '(' && closing == ')')
-                || (opening == '{' && closing == '}')
-                || (opening == '[' && closing == ']')
-                || (opening == '<' && closing == '>');
+        return ( opening == '(' && closing == ')' )
+                || ( opening == '{' && closing == '}' )
+                || ( opening == '[' && closing == ']' )
+                || ( opening == '<' && closing == '>' );
     }
 }
