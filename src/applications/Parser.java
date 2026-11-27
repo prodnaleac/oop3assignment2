@@ -1,23 +1,270 @@
 package applications;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+
+import exceptions.EmptyQueueException;
+import implementations.MyArrayList;
 import implementations.MyStack;
 import implementations.MyQueue;
 
 /**
- * Handles the bracket-processing portion of the parser algorithm.
+ * Checks a text file for matched and nested brackets using {@link MyStack}
+ * and {@link MyQueue}. Run as {@code java -jar Parser.jar <file>}.
  */
 public class Parser
 {
+    /** separator between the bracket and its line number, e.g. "(|12" */
+    private static final String SEPARATOR = "|";
+
+    /** every character the parser cares about, everything else is ignored */
+    private static final String BRACKETS = "(){}[]<>";
+
     /**
-     * Processes a bracket according to Kitty's parser algorithm.
+     * runs the parser on the file in args[0].
+     *
+     * @param args  the command-line arguments, args[0] has to be the path of the file to parse
+     */
+    public static void main( String[] args )
+    {
+        // missing argument
+        if ( args == null || args.length == 0 )
+        {
+            System.out.println( "Error: no file was given." );
+            System.out.println( "Usage: java -jar Parser.jar <path to text file>" );
+            return;
+        }
+        if ( args.length > 1 )
+        {
+            System.out.println( "Note: only the first argument is used, the rest were ignored." );
+        }
+
+        String fileName = args[ 0 ];
+        File file = new File( fileName );
+
+        // file not found, or it's a folder instead of a file
+        if ( !file.exists() )
+        {
+            System.out.println( "Error: the file \"" + fileName + "\" could not be found." );
+            return;
+        }
+        if ( !file.isFile() )
+        {
+            System.out.println( "Error: \"" + fileName + "\" is a folder, not a file." );
+            return;
+        }
+
+        try
+        {
+            parseFile( file );
+        }
+        catch ( IOException e )
+        {
+            System.out.println( "Error: the file \"" + fileName + "\" could not be read (" + e.getMessage() + ")." );
+        }
+        catch ( EmptyQueueException e )
+        {
+            System.out.println( "Error: the parser hit an unexpected empty queue (" + e.getMessage() + ")." );
+        }
+    }
+
+    /**
+     * reads the file, sends each bracket to the main loop, then prints the errors.
+     *
+     * @param file  the text file to parse, has to exist
+     * @throws IOException if the file can't be opened or read
+     * @throws EmptyQueueException if a queue is read while empty (guarded, should not happen)
+     */
+    private static void parseFile( File file ) throws IOException, EmptyQueueException
+    {
+        MyStack bracketStack = new MyStack();
+        MyQueue errorQ = new MyQueue();
+        MyQueue extrasQ = new MyQueue();
+
+        // keep every line so errors can show what the line looked like
+        MyArrayList lines = new MyArrayList();
+
+        // try-with-resources closes the file even if something goes wrong
+        try ( BufferedReader reader = new BufferedReader( new FileReader( file ) ) )
+        {
+            String line;
+            int lineNumber = 0;
+
+            while ( ( line = reader.readLine() ) != null )
+            {
+                lineNumber++;
+                lines.add( line );
+
+                // pull out each bracket and tag it with its line number
+                for ( int i = 0; i < line.length(); i++ )
+                {
+                    char ch = line.charAt( i );
+                    if ( BRACKETS.indexOf( ch ) != -1 )
+                    {
+                        processBracket( ch + SEPARATOR + lineNumber, bracketStack, errorQ, extrasQ );
+                    }
+                }
+            }
+        }
+
+        // empty file
+        if ( lines.isEmpty() )
+        {
+            System.out.println( "The file \"" + file.getName() + "\" is empty, there is nothing to parse." );
+            return;
+        }
+
+        System.out.println( "Parsing \"" + file.getName() + "\" (" + lines.size() + " lines)" );
+        System.out.println( "--------------------------------------------------" );
+
+        MyArrayList errors = checkEndOfFile( bracketStack, errorQ, extrasQ );
+
+        // print errors in the order they show up in the file
+        sortByLineNumber( errors );
+        for ( int i = 0; i < errors.size(); i++ )
+        {
+            reportError( errors.get( i ), lines );
+        }
+        int errorCount = errors.size();
+
+        System.out.println( "--------------------------------------------------" );
+        if ( errorCount == 0 )
+        {
+            System.out.println( "No errors found, every bracket is matched and nested correctly." );
+        }
+        else
+        {
+            System.out.println( errorCount + " error(s) found." );
+        }
+    }
+
+    /**
+     * empties the stack into errorQ, then compares
+     * errorQ with extrasQ.
+     *
+     * @param bracketStack  leftover opening brackets
+     * @param errorQ        possible errors from the main loop
+     * @param extrasQ       closing brackets with no opener
+     * @return every error as a "bracket|line" entry
+     * @throws EmptyQueueException if a queue is read while empty (guarded, should not happen)
+     */
+    private static MyArrayList checkEndOfFile( MyStack bracketStack, MyQueue errorQ, MyQueue extrasQ )
+            throws EmptyQueueException
+    {
+        MyArrayList errors = new MyArrayList();
+
+        // if the stack is not empty, pop each one into errorQ
+        while ( !bracketStack.isEmpty() )
+        {
+            errorQ.enqueue( bracketStack.pop() );
+        }
+
+        // repeat until both queues are empty
+        while ( !errorQ.isEmpty() || !extrasQ.isEmpty() )
+        {
+            // only one queue has anything left, so everything in it is an error
+            if ( extrasQ.isEmpty() )
+            {
+                errors.add( errorQ.dequeue() );
+            }
+            else if ( errorQ.isEmpty() )
+            {
+                errors.add( extrasQ.dequeue() );
+            }
+            // both have something, so peek both and compare the bracket characters
+            else if ( !isMatchingPair( errorQ.peek().charAt( 0 ), extrasQ.peek().charAt( 0 ) ) )
+            {
+                errors.add( errorQ.dequeue() );
+            }
+            else
+            {
+                // they cancel each other out
+                errorQ.dequeue();
+                extrasQ.dequeue();
+            }
+        }
+        return errors;
+    }
+
+    /**
+     * sorts the errors by line number (insertion sort).
+     *
+     * @param errors  the "bracket|line" entries to sort
+     */
+    private static void sortByLineNumber( MyArrayList errors )
+    {
+        for ( int i = 1; i < errors.size(); i++ )
+        {
+            String current = errors.get( i );
+            int j = i - 1;
+
+            // shift bigger line numbers one spot right to make room
+            while ( j >= 0 && lineOf( errors.get( j ) ) > lineOf( current ) )
+            {
+                errors.set( j + 1, errors.get( j ) );
+                j--;
+            }
+            errors.set( j + 1, current );
+        }
+    }
+
+    /**
+     * pulls the line number out of a "bracket|line" entry.
+     *
+     * @param entry  the entry, e.g. "(|12"
+     * @return the line number, e.g. 12
+     */
+    private static int lineOf( String entry )
+    {
+        // "|" means OR in a regex, so it has to be escaped
+        return Integer.parseInt( entry.split( "\\|" )[ 1 ] );
+    }
+
+    /**
+     * prints one error with its line number and line text.
+     *
+     * @param entry  the bracket and its line number, e.g. "(|12"
+     * @param lines  every line of the file
+     */
+    private static void reportError( String entry, MyArrayList lines )
+    {
+        // "|" means OR in a regex, so it has to be escaped
+        String[] parts = entry.split( "\\|" );
+        char bracket = parts[ 0 ].charAt( 0 );
+        int lineNumber = lineOf( entry );
+
+        String problem = isOpening( bracket )
+                ? "opening '" + bracket + "' is never closed"
+                : "closing '" + bracket + "' has no matching opening bracket";
+
+        System.out.println( "Error at line " + lineNumber + ": " + problem );
+        System.out.println( "    " + lines.get( lineNumber - 1 ).trim() );
+    }
+
+    /**
+     * checks if a character is one of the four opening brackets.
+     *
+     * @param bracket  the character to check
+     * @return true if it is ( { [ or &lt;, false if not
+     */
+    private static boolean isOpening( char bracket )
+    {
+        return bracket == '(' || bracket == '{' || bracket == '[' || bracket == '<';
+    }
+
+    /**
+     * Processes a bracket according to parser algorithm.
      *
      * @param bracketEntry the bracket and its line number (e.g. "(|11")
      * @param bracketStack the stack of opening brackets
      * @param errorQ the queue of potential syntax errors
      * @param extrasQ the queue of unmatched closing brackets
+     * @throws EmptyQueueException if errorQ is read while empty (guarded, should not happen)
      */
     public static void processBracket(String bracketEntry,
-            MyStack bracketStack, MyQueue errorQ, MyQueue extrasQ)
+            MyStack bracketStack, MyQueue errorQ, MyQueue extrasQ) throws EmptyQueueException
     {
         char bracket = bracketEntry.charAt(0);
 
