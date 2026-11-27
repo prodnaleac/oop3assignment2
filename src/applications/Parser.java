@@ -101,7 +101,8 @@ public class Parser
                 for ( int i = 0; i < line.length(); i++ )
                 {
                     char ch = line.charAt( i );
-                    if ( BRACKETS.indexOf( ch ) != -1 )
+                    // skip < and > when they're used as comparison operators
+                    if ( BRACKETS.indexOf( ch ) != -1 && !isComparison( line, i ) )
                     {
                         processBracket( ch + SEPARATOR + lineNumber, bracketStack, errorQ, extrasQ );
                     }
@@ -174,7 +175,7 @@ public class Parser
                 errors.add( extrasQ.dequeue() );
             }
             // both have something, so peek both and compare the bracket characters
-            else if ( !isMatchingPair( errorQ.peek().charAt( 0 ), extrasQ.peek().charAt( 0 ) ) )
+            else if ( errorQ.peek().charAt( 0 ) != extrasQ.peek().charAt( 0 ) )
             {
                 errors.add( errorQ.dequeue() );
             }
@@ -252,6 +253,66 @@ public class Parser
     private static boolean isOpening( char bracket )
     {
         return bracket == '(' || bracket == '{' || bracket == '[' || bracket == '<';
+    }
+
+    /**
+     * checks if the &lt; or &gt; at the given spot is an operator instead of a bracket:
+     * &lt;= &gt;= &lt;&lt; &gt;&gt; -&gt;, or a lone &lt; / &gt; with spaces on both sides
+     * sitting between two values (like "a &lt; b").
+     *
+     * @param line   the line being parsed
+     * @param index  the spot of the character to check
+     * @return true if it's a comparison or other operator, false if it's a bracket
+     */
+    private static boolean isComparison( String line, int index )
+    {
+        char ch = line.charAt( index );
+        if ( ch != '<' && ch != '>' )
+        {
+            return false;
+        }
+
+        char before = ( index > 0 ) ? line.charAt( index - 1 ) : ' ';
+        char after = ( index < line.length() - 1 ) ? line.charAt( index + 1 ) : ' ';
+
+        // <=  >=  <<  >>  ->
+        if ( after == '=' || after == ch || before == ch || ( ch == '>' && before == '-' ) )
+        {
+            return true;
+        }
+
+        // a lone < or > with spaces around it, between two values
+        if ( Character.isWhitespace( before ) && Character.isWhitespace( after ) )
+        {
+            char prevValue = nextNonSpace( line, index - 1, -1 );
+            char nextValue = nextNonSpace( line, index + 1, 1 );
+            boolean valueBefore = Character.isLetterOrDigit( prevValue ) || prevValue == '_'
+                    || prevValue == ')' || prevValue == ']';
+            boolean valueAfter = Character.isLetterOrDigit( nextValue ) || nextValue == '_'
+                    || nextValue == '(' || nextValue == '-';
+            return valueBefore && valueAfter;
+        }
+        return false;
+    }
+
+    /**
+     * finds the first character that isn't whitespace, walking from a start spot.
+     *
+     * @param line   the line to search
+     * @param start  the spot to start from
+     * @param step   1 to walk right, -1 to walk left
+     * @return the first non-space character, or a space if there isn't one
+     */
+    private static char nextNonSpace( String line, int start, int step )
+    {
+        for ( int i = start; i >= 0 && i < line.length(); i += step )
+        {
+            if ( !Character.isWhitespace( line.charAt( i ) ) )
+            {
+                return line.charAt( i );
+            }
+        }
+        return ' ';
     }
 
     /**
