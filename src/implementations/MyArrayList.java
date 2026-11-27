@@ -29,7 +29,7 @@ public class MyArrayList implements ListADT
 {
     // constants
 
-    /** starting size of the array if no capacity is given */
+    /** starting size of the array */
     private static final int DEFAULT_CAPACITY = 10;
 
     /** how much the array grows when it's full (0.5 = grows by 50%) */
@@ -49,48 +49,22 @@ public class MyArrayList implements ListADT
     // constructors
 
     /**
-     * makes an empty list with the default size and growth rate.
+     * makes an empty list with the default growth rate.
      */
     public MyArrayList()
     {
-        // just pass the defaults to the full constructor
-        this( DEFAULT_CAPACITY, DEFAULT_GROWTH_RATE );
+        this( DEFAULT_GROWTH_RATE );
     }
 
     /**
-     * makes an empty list with a custom starting size.
+     * makes an empty list with a custom growth rate.
      *
-     * @param initialCapacity  how big the array starts
-     * @throws IllegalArgumentException if initialCapacity is negative
+     * @param growthRate  how much the array grows when it's full (like 0.25 for 25%)
      */
-    public MyArrayList( int initialCapacity )
+    public MyArrayList( double growthRate )
     {
-        this( initialCapacity, DEFAULT_GROWTH_RATE );
-    }
-
-    /**
-     * makes an empty list with a custom starting size and growth rate.
-     *
-     * @param initialCapacity  how big the array starts
-     * @param growthRate       how much the array grows when it's full (like 0.25 for 25%)
-     * @throws IllegalArgumentException if initialCapacity is negative or growthRate isn't above 0
-     */
-    public MyArrayList( int initialCapacity, double growthRate )
-    {
-        // can't have a negative sized array
-        if ( initialCapacity < 0 )
-        {
-            throw new IllegalArgumentException( "Capacity can't be negative: " + initialCapacity );
-        }
-        // growth rate has to actually grow the array
-        if ( growthRate <= 0 )
-        {
-            throw new IllegalArgumentException( "Growth rate has to be greater than 0: " + growthRate );
-        }
-
-        // start with an empty array, nothing in it yet
-        this.elements = new String[ initialCapacity ];
-        this.size = 0;
+        elements = new String[ DEFAULT_CAPACITY ];
+        size = 0;
         this.growthRate = growthRate;
     }
 
@@ -113,11 +87,8 @@ public class MyArrayList implements ListADT
     @Override
     public void clear()
     {
-        // null out the old slots so they can be garbage collected
-        for ( int i = 0; i < size; i++ )
-        {
-            elements[ i ] = null;
-        }
+        // start over with a fresh array
+        elements = new String[ DEFAULT_CAPACITY ];
         size = 0;
     }
 
@@ -133,27 +104,28 @@ public class MyArrayList implements ListADT
     @Override
     public boolean add( int index, String toAdd ) throws NullPointerException, IndexOutOfBoundsException
     {
-        // no nulls allowed in the list
         if ( toAdd == null )
         {
-            throw new NullPointerException( "Can't add a null element." );
+            throw new NullPointerException();
         }
-        // index == size is allowed here, that just means add to the end
+        // index == size is allowed, that just means add to the end
         if ( index < 0 || index > size )
         {
-            throw new IndexOutOfBoundsException( "Index: " + index + ", Size: " + size );
+            throw new IndexOutOfBoundsException();
         }
 
-        // make sure there's room before shifting stuff over
-        ensureCapacity();
+        // make room if the array is full
+        if ( size == elements.length )
+        {
+            grow();
+        }
 
-        // shift everything from index onward one spot right to make room
+        // shift everything from index onward one spot right
         for ( int i = size; i > index; i-- )
         {
             elements[ i ] = elements[ i - 1 ];
         }
 
-        // drop the new element in the gap and bump the size
         elements[ index ] = toAdd;
         size++;
         return true;
@@ -185,16 +157,14 @@ public class MyArrayList implements ListADT
     {
         if ( toAdd == null )
         {
-            throw new NullPointerException( "Can't add from a null list." );
+            throw new NullPointerException();
         }
 
-        // copy into an array first, so adding a list to itself doesn't loop forever
-        String[] toCopy = toAdd.toArray( new String[ toAdd.size() ] );
-
-        // add each one to the end in order
-        for ( int i = 0; i < toCopy.length; i++ )
+        // save the size first so the loop doesn't change if toAdd is this list
+        int count = toAdd.size();
+        for ( int i = 0; i < count; i++ )
         {
-            add( toCopy[ i ] );
+            add( toAdd.get( i ) );
         }
         return true;
     }
@@ -209,7 +179,6 @@ public class MyArrayList implements ListADT
     @Override
     public String get( int index ) throws IndexOutOfBoundsException
     {
-        // make sure the index is valid first, then grab it
         checkIndex( index );
         return elements[ index ];
     }
@@ -225,8 +194,6 @@ public class MyArrayList implements ListADT
     public String remove( int index ) throws IndexOutOfBoundsException
     {
         checkIndex( index );
-
-        // save it so we can return it after
         String removed = elements[ index ];
 
         // shift everything after index one spot left to close the gap
@@ -235,7 +202,6 @@ public class MyArrayList implements ListADT
             elements[ i ] = elements[ i + 1 ];
         }
 
-        // clear the old last slot
         elements[ size - 1 ] = null;
         size--;
         return removed;
@@ -251,16 +217,13 @@ public class MyArrayList implements ListADT
     @Override
     public String remove( String toRemove ) throws NullPointerException
     {
-        // indexOf already throws if it's null
         int index = indexOf( toRemove );
 
-        // not in the list, so nothing to remove
+        // not in the list
         if ( index == -1 )
         {
             return null;
         }
-
-        // found it, so just reuse remove by index
         return remove( index );
     }
 
@@ -278,14 +241,13 @@ public class MyArrayList implements ListADT
     {
         if ( toChange == null )
         {
-            throw new NullPointerException( "Can't set a null element." );
+            throw new NullPointerException();
         }
         checkIndex( index );
 
-        // swap in the new one and hand back the old one
-        String previous = elements[ index ];
+        String old = elements[ index ];
         elements[ index ] = toChange;
-        return previous;
+        return old;
     }
 
     /**
@@ -309,7 +271,6 @@ public class MyArrayList implements ListADT
     @Override
     public boolean contains( String toFind ) throws NullPointerException
     {
-        // if indexOf finds it, it's in the list
         return indexOf( toFind ) != -1;
     }
 
@@ -325,10 +286,9 @@ public class MyArrayList implements ListADT
     {
         if ( toFind == null )
         {
-            throw new NullPointerException( "Can't search for a null element." );
+            throw new NullPointerException();
         }
 
-        // check each element from the front, first match wins
         for ( int i = 0; i < size; i++ )
         {
             if ( elements[ i ].equals( toFind ) )
@@ -336,8 +296,6 @@ public class MyArrayList implements ListADT
                 return i;
             }
         }
-
-        // went through everything and didn't find it
         return -1;
     }
 
@@ -354,23 +312,16 @@ public class MyArrayList implements ListADT
     {
         if ( toHold == null )
         {
-            throw new NullPointerException( "The holder array can't be null." );
+            throw new NullPointerException();
         }
 
-        // not enough room, so make a new array that fits exactly
+        // too small, so make one that fits
         if ( toHold.length < size )
         {
-            return Arrays.copyOf( elements, size );
+            toHold = new String[ size ];
         }
 
-        // big enough, so copy straight into their array
         System.arraycopy( elements, 0, toHold, 0, size );
-
-        // mark where the list ends if there's leftover room
-        if ( toHold.length > size )
-        {
-            toHold[ size ] = null;
-        }
         return toHold;
     }
 
@@ -382,27 +333,18 @@ public class MyArrayList implements ListADT
     @Override
     public Iterator iterator()
     {
-        // new iterator every time so they don't mess with each other
         return new ArrayListIterator();
     }
 
     // helper methods
 
     /**
-     * grows the array if it's full, everything stays in the same spot.
+     * makes the array bigger by the growth rate.
      */
-    private void ensureCapacity()
+    private void grow()
     {
-        // still got room, nothing to do
-        if ( size < elements.length )
-        {
-            return;
-        }
-
-        // always grow by at least 1, so tiny or empty arrays still get bigger
+        // grow by at least 1 so a small growth rate still makes room
         int growBy = Math.max( 1, (int) ( elements.length * growthRate ) );
-
-        // copy everything into a bigger array
         elements = Arrays.copyOf( elements, elements.length + growBy );
     }
 
@@ -414,36 +356,21 @@ public class MyArrayList implements ListADT
      */
     private void checkIndex( int index ) throws IndexOutOfBoundsException
     {
-        // valid indexes are 0 up to size - 1
         if ( index < 0 || index >= size )
         {
-            throw new IndexOutOfBoundsException( "Index: " + index + ", Size: " + size );
+            throw new IndexOutOfBoundsException();
         }
     }
 
     // iterator
 
     /**
-     * goes through a copy of the list from front to back, so changing the
-     * list after doesn't mess it up.
+     * goes through the list from front to back.
      */
     private class ArrayListIterator implements Iterator
     {
-        /** copy of the list from when the iterator was made */
-        private String[] snapshot;
-
         /** spot of the next element to return */
-        private int cursor;
-
-        /**
-         * makes an iterator that starts at the front of the list.
-         */
-        public ArrayListIterator()
-        {
-            // copy the list so changes after this don't mess up the iterator
-            snapshot = Arrays.copyOf( elements, size );
-            cursor = 0;
-        }
+        private int cursor = 0;
 
         /**
          * checks if there's still more to go through.
@@ -453,7 +380,7 @@ public class MyArrayList implements ListADT
         @Override
         public boolean hasNext()
         {
-            return cursor < snapshot.length;
+            return cursor < size;
         }
 
         /**
@@ -467,10 +394,9 @@ public class MyArrayList implements ListADT
         {
             if ( !hasNext() )
             {
-                throw new NoSuchElementException( "No more elements in the list." );
+                throw new NoSuchElementException();
             }
-            // return the current one, then move the cursor up
-            return snapshot[ cursor++ ];
+            return elements[ cursor++ ];
         }
     }
 }
