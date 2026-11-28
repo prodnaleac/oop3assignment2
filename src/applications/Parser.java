@@ -16,6 +16,14 @@ import implementations.MyQueue;
  */
 public class Parser
 {
+    /**
+     * Creates a Parser instance.
+     */
+    public Parser()
+    {
+        // No initialization is required.
+    }
+
     /** separator between the bracket and its line number, e.g. "(|12" */
     private static final String SEPARATOR = "|";
 
@@ -25,7 +33,7 @@ public class Parser
     /**
      * runs the parser on the file in args[0].
      *
-     * @param args  the command-line arguments, args[0] has to be the path of the file to parse
+     * @param args the command-line arguments, args[0] has to be the path of the file to parse
      */
     public static void main( String[] args )
     {
@@ -64,7 +72,7 @@ public class Parser
     /**
      * reads the file, sends each bracket to the main loop, then prints the errors.
      *
-     * @param file  the text file to parse, has to exist
+     * @param file the text file to parse, has to exist
      * @throws IOException if the file can't be opened or read
      * @throws EmptyQueueException if a queue is read while empty
      */
@@ -91,6 +99,7 @@ public class Parser
                 for ( int i = 0; i < line.length(); i++ )
                 {
                     char ch = line.charAt( i );
+
                     // skip < and > when they're used as comparison operators
                     if ( BRACKETS.indexOf( ch ) != -1 && !isComparison( line, i ) )
                     {
@@ -113,14 +122,22 @@ public class Parser
         MyArrayList errors = checkEndOfFile( bracketStack, errorQ, extrasQ );
 
         // print errors in the order they show up in the file
+        long sortingStart = System.nanoTime();
         sortByLineNumber( errors );
+        long sortingEnd = System.nanoTime();
+        double sortingTimeMs = ( sortingEnd - sortingStart ) / 1_000_000.0;
+
+        System.out.println( "Sorting time: " + sortingTimeMs + " ms" );
+
         for ( int i = 0; i < errors.size(); i++ )
         {
             reportError( errors.get( i ), lines );
         }
+
         int errorCount = errors.size();
 
         System.out.println( "--------------------------------------------------" );
+
         if ( errorCount == 0 )
         {
             System.out.println( "No errors found, every bracket is matched and nested correctly." );
@@ -135,9 +152,9 @@ public class Parser
      * empties the stack into errorQ, then compares
      * errorQ with extrasQ.
      *
-     * @param bracketStack  leftover opening brackets
-     * @param errorQ        possible errors from the main loop
-     * @param extrasQ       closing brackets with no opener
+     * @param bracketStack leftover opening brackets
+     * @param errorQ possible errors from the main loop
+     * @param extrasQ closing brackets with no opener
      * @return every error as a "bracket|line" entry
      * @throws EmptyQueueException if a queue is read while empty
      */
@@ -164,6 +181,7 @@ public class Parser
             {
                 errors.add( extrasQ.dequeue() );
             }
+
             // both have something, so peek both and compare the bracket characters
             else if ( errorQ.peek().charAt( 0 ) != extrasQ.peek().charAt( 0 ) )
             {
@@ -176,13 +194,14 @@ public class Parser
                 extrasQ.dequeue();
             }
         }
+
         return errors;
     }
 
     /**
      * sorts the errors by line number (insertion sort).
      *
-     * @param errors  the "bracket|line" entries to sort
+     * @param errors the "bracket|line" entries to sort
      */
     private static void sortByLineNumber( MyArrayList errors )
     {
@@ -197,6 +216,7 @@ public class Parser
                 errors.set( j + 1, errors.get( j ) );
                 j--;
             }
+
             errors.set( j + 1, current );
         }
     }
@@ -204,7 +224,7 @@ public class Parser
     /**
      * pulls the line number out of a "bracket|line" entry.
      *
-     * @param entry  the entry, e.g. "(|12"
+     * @param entry the entry, e.g. "(|12"
      * @return the line number, e.g. 12
      */
     private static int lineOf( String entry )
@@ -215,8 +235,8 @@ public class Parser
     /**
      * prints one error with its line number and line text.
      *
-     * @param entry  the bracket and its line number, e.g. "(|12"
-     * @param lines  every line of the file
+     * @param entry the bracket and its line number, e.g. "(|12"
+     * @param lines every line of the file
      */
     private static void reportError( String entry, MyArrayList lines )
     {
@@ -235,8 +255,8 @@ public class Parser
     /**
      * checks if a character is one of the four opening brackets.
      *
-     * @param bracket  the character to check
-     * @return true if it is ( { [ or &lt;, false if not
+     * @param bracket the character to check
+     * @return true if it is ( { [ or <, false if not
      */
     private static boolean isOpening( char bracket )
     {
@@ -244,17 +264,18 @@ public class Parser
     }
 
     /**
-     * checks if the &lt; or &gt; at the given spot is a comparison instead of a bracket:
-     * &lt;= &gt;=, or a lone &lt; / &gt; with spaces on both sides sitting between
-     * two values (like "a &lt; b").
+     * checks if the < or > at the given spot is a comparison instead of a bracket:
+     * <= >=, or a lone < / > with spaces on both sides sitting between
+     * two values (like "a < b").
      *
-     * @param line   the line being parsed
-     * @param index  the spot of the character to check
+     * @param line the line to check
+     * @param index the spot of the character to check
      * @return true if it's a comparison, false if it's a bracket
      */
     private static boolean isComparison( String line, int index )
     {
         char ch = line.charAt( index );
+
         if ( ch != '<' && ch != '>' )
         {
             return false;
@@ -263,7 +284,7 @@ public class Parser
         char before = ( index > 0 ) ? line.charAt( index - 1 ) : ' ';
         char after = ( index < line.length() - 1 ) ? line.charAt( index + 1 ) : ' ';
 
-        // <=  >=
+        // <= >=
         if ( after == '=' )
         {
             return true;
@@ -274,21 +295,25 @@ public class Parser
         {
             char prevValue = nextNonSpace( line, index - 1, -1 );
             char nextValue = nextNonSpace( line, index + 1, 1 );
+
             boolean valueBefore = Character.isLetterOrDigit( prevValue ) || prevValue == '_'
                     || prevValue == ')' || prevValue == ']';
+
             boolean valueAfter = Character.isLetterOrDigit( nextValue ) || nextValue == '_'
                     || nextValue == '(' || nextValue == '-';
+
             return valueBefore && valueAfter;
         }
+
         return false;
     }
 
     /**
      * finds the first character that isn't whitespace, walking from a start spot.
      *
-     * @param line   the line to search
-     * @param start  the spot to start from
-     * @param step   1 to walk right, -1 to walk left
+     * @param line the line to search
+     * @param start the spot to start from
+     * @param step 1 to walk right, -1 to walk left
      * @return the first non-space character, or a space if there isn't one
      */
     private static char nextNonSpace( String line, int start, int step )
@@ -300,16 +325,17 @@ public class Parser
                 return line.charAt( i );
             }
         }
+
         return ' ';
     }
 
     /**
      * runs one bracket through the main loop of the parser algorithm.
      *
-     * @param bracketEntry  the bracket and its line number, e.g. "(|11"
-     * @param bracketStack  the stack of opening brackets
-     * @param errorQ        the queue of possible errors
-     * @param extrasQ       the queue of closing brackets with no opener
+     * @param bracketEntry the bracket and its line number, e.g. "(|11"
+     * @param bracketStack the stack of opening brackets
+     * @param errorQ the queue of possible errors
+     * @param extrasQ the queue of closing brackets with no opener
      * @throws EmptyQueueException if errorQ is read while empty
      */
     public static void processBracket( String bracketEntry, MyStack bracketStack, MyQueue errorQ,
@@ -389,8 +415,8 @@ public class Parser
     /**
      * checks if an opening bracket matches a closing bracket.
      *
-     * @param opening  the opening bracket
-     * @param closing  the closing bracket
+     * @param opening the opening bracket
+     * @param closing the closing bracket
      * @return true if the brackets match, false if not
      */
     private static boolean isMatchingPair( char opening, char closing )
