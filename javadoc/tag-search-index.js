@@ -1,1 +1,0 @@
-tagSearchIndex = [{"l":"Implementation Requirements","h":"interface utilities.Iterator","d":"Section","u":"utilities/Iterator.html#implementation-requirements-heading"},{"l":"Serialized Form","h":"","u":"serialized-form.html"}];updateSearchResults();
