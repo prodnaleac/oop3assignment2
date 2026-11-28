@@ -16,14 +16,6 @@ import implementations.MyQueue;
  */
 public class Parser
 {
-    /**
-     * Creates a Parser instance.
-     */
-    public Parser()
-    {
-        // No initialization is required.
-    }
-
     /** separator between the bracket and its line number, e.g. "(|12" */
     private static final String SEPARATOR = "|";
 
